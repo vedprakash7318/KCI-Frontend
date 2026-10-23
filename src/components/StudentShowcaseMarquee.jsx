@@ -1,0 +1,104 @@
+import { useState, useEffect } from 'react';
+import { GraduationCap } from 'lucide-react';
+import api from '../utils/api';
+
+const DEFAULT_SHOWCASE_STUDENTS = [
+  { _id: 's1', name: 'Rahul Kumar', course: 'Web Development', year: '2026', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 1 },
+  { _id: 's2', name: 'Priya Sharma', course: 'Graphic Design', year: '2025', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 2 },
+  { _id: 's3', name: 'Aman Singh', course: 'Python', year: '2026', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 3 },
+  { _id: 's4', name: 'Neha Gupta', course: 'Tally', year: '2025', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 4 },
+  { _id: 's5', name: 'Rohit Verma', course: 'DCA', year: '2026', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 5 },
+  { _id: 's6', name: 'Sneha Yadav', course: 'ADCA', year: '2025', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 6 },
+  { _id: 's7', name: 'Ankit Raj', course: 'Java', year: '2026', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 7 },
+  { _id: 's8', name: 'Kavya Mishra', course: 'Digital Marketing', year: '2025', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300&auto=format&fit=crop&q=80', status: true, displayOrder: 8 },
+];
+
+export default function StudentShowcaseMarquee() {
+  const [students, setStudents] = useState(DEFAULT_SHOWCASE_STUDENTS);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchShowcases = async () => {
+      try {
+        const { data } = await api.get('/showcase/public');
+        if (isMounted && data.success && Array.isArray(data.students) && data.students.length > 0) {
+          setStudents(data.students);
+        }
+      } catch (err) {
+        // Fallback to default students array if API fetch fails
+      }
+    };
+    fetchShowcases();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Duplicate items list multiple times for seamless, continuous infinite running marquee
+  const displayList = Array.isArray(students) && students.length > 0 ? students : DEFAULT_SHOWCASE_STUDENTS;
+  const marqueeList = [...displayList, ...displayList, ...displayList, ...displayList];
+
+  return (
+    <section className="relative bg-gradient-to-b from-slate-50 via-blue-50/40 to-slate-100 py-12 sm:py-16 overflow-hidden border-t border-slate-200/60">
+      
+      {/* Background Decorative Ambient Glows */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-6xl h-48 pointer-events-none -z-10 opacity-30 blur-3xl bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 rounded-full" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        
+        {/* Header Section */}
+        <div className="text-center mb-8 sm:mb-10">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
+            Our Successful <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">Students</span>
+          </h2>
+          <p className="text-slate-600 text-xs sm:text-sm font-semibold mt-1.5 tracking-wide">
+            Learning Today, Building Tomorrow
+          </p>
+          
+          {/* Graduation Cap Divider */}
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <div className="w-12 h-[2px] bg-gradient-to-r from-transparent to-blue-500 rounded-full" />
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            <div className="w-12 h-[2px] bg-gradient-to-l from-transparent to-blue-500 rounded-full" />
+          </div>
+        </div>
+
+          {/* Continuous Running Marquee Wrapper Container */}
+        <div className="relative overflow-hidden">
+          {/* Guaranteed Running Marquee Track */}
+          <div className="overflow-hidden py-4 w-full">
+            <div
+              className="kci-marquee-track flex items-center gap-8 sm:gap-12 flex-nowrap"
+              style={{ animation: 'kci-marquee-loop 20s linear infinite' }}
+            >
+              {marqueeList.map((item, idx) => (
+                <div
+                  key={`${item._id || item.name}-${idx}`}
+                  className="flex flex-col items-center text-center shrink-0 w-32 sm:w-40"
+                >
+                  {/* Circular Image */}
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full p-0.5 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 shadow-md mb-3">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full rounded-full object-cover border-2 border-white bg-slate-100"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 truncate max-w-full">{item.name}</h4>
+                  <p className="text-xs text-slate-500 truncate max-w-full mt-0.5">{item.course}</p>
+                  <span className="text-xs text-slate-400 mt-0.5">{item.year}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+}

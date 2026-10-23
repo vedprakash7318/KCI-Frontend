@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /courses
+Allow: /gallery
+Allow: /branches
+Allow: /contact
+Allow: /admission
+Allow: /branch-apply
+Allow: /verify-certificate
+Allow: /verify-admit-card
+
+Disallow: /admin
+Disallow: /branch
+Disallow: /student
+Disallow: /login
+Disallow: /api/
+
+Sitemap: https://keerticomputer.com/sitemap.xml

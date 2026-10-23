@@ -1,0 +1,315 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { FileText, CheckCircle, User, BookOpen, Phone, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
+
+const COURSES = ['DCA', 'ADCA', 'CCA', 'PGDCA', 'Tally with GST', 'Web Design', 'Web Development', 'Python', 'MS Office', 'Graphic Design', 'AI & Machine Learning', 'Other'];
+
+const inputCls = 'w-full px-4 py-2.5 border-2 border-gray-100 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 transition-all text-sm';
+const selectCls = inputCls + ' cursor-pointer';
+const labelCls = 'block text-sm font-semibold text-gray-700 mb-1.5';
+
+function SectionHeader({ icon: Icon, title, color }) {
+  return (
+    <div className={`flex items-center gap-2 pb-3 border-b-2 ${color} mb-5`}>
+      <Icon className="w-5 h-5 text-blue-600" />
+      <h3 className="font-black text-gray-800 text-base">{title}</h3>
+    </div>
+  );
+}
+
+export default function ExaminationForm() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    studentName: '', fatherName: '', motherName: '', dob: '', gender: '', category: 'General',
+    enrollmentNumber: '', course: '', batch: '', session: '', qualification: '', subjects: '',
+    phone: '', email: '', address: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [existingForm, setExistingForm] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [declared, setDeclared] = useState(false);
+
+  // Auto-fill from user profile
+  useEffect(() => {
+    if (!user) { setChecking(false); return; }
+    const dobVal = user.dob ? new Date(user.dob).toISOString().split('T')[0] : '';
+    setForm(p => ({
+      ...p,
+      studentName: user.name || '',
+      fatherName: user.fatherName || '',
+      dob: dobVal,
+      enrollmentNumber: user.enrollmentNumber || '',
+      course: user.courseName || '',
+      batch: user.batch || '',
+      phone: user.phone || '',
+      email: user.email || '',
+      address: user.address || '',
+    }));
+    api.get('/exam-forms/my')
+      .then(r => { if (r.data.form) { setAlreadySubmitted(true); setExistingForm(r.data.form); } })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, [user]);
+
+  const handle = e => {
+    const { name, value } = e.target;
+    setForm(p => ({ ...p, [name]: value }));
+    if (errors[name]) setErrors(p => ({ ...p, [name]: '' }));
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.studentName.trim()) e.studentName = 'Student name is required';
+    if (!form.fatherName.trim()) e.fatherName = "Father's name is required";
+    if (!form.dob) e.dob = 'Date of birth is required';
+    if (!form.gender) e.gender = 'Gender is required';
+    if (!form.enrollmentNumber.trim()) e.enrollmentNumber = 'Enrollment number is required';
+    if (!form.course) e.course = 'Course is required';
+    if (!form.batch.trim()) e.batch = 'Batch is required';
+    if (!form.phone.trim()) e.phone = 'Phone is required';
+    else if (!/^[6-9]\d{9}$/.test(form.phone.trim())) e.phone = 'Enter valid 10-digit mobile number';
+    if (!form.email.trim()) e.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Enter valid email address';
+    return e;
+  };
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    const e2 = validate();
+    if (Object.keys(e2).length) { setErrors(e2); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    setLoading(true); setError('');
+    try {
+      await api.post('/exam-forms', form);
+      setSuccess(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Submission failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (checking) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (alreadySubmitted && existingForm) return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 pt-28 pb-16 px-4 flex items-center justify-center">
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-12 text-center max-w-md w-full">
+        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-5">
+          <AlertCircle className="w-10 h-10 text-blue-500" />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Already Submitted</h2>
+        <p className="text-gray-500 text-sm mb-4">You have already submitted your examination form.</p>
+        <div className="bg-blue-50 rounded-xl p-4 mb-4 text-left">
+          <p className="text-xs text-blue-600 font-semibold mb-1">Enrollment Number</p>
+          <p className="text-blue-800 font-black text-lg">{existingForm.enrollmentNumber}</p>
+          <p className="text-xs text-gray-400 mt-2">Status: <span className={`font-bold ${
+            existingForm.status === 'Approved' ? 'text-green-600' :
+            existingForm.status === 'Rejected' ? 'text-red-600' : 'text-yellow-600'
+          }`}>{existingForm.status}</span></p>
+        </div>
+        {user && (
+          <button onClick={() => navigate('/dashboard')}
+            className="w-full px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all">
+            Go to Dashboard
+          </button>
+        )}
+      </motion.div>
+    </div>
+  );
+
+  if (success) return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 pt-28 pb-16 px-4 flex items-center justify-center">
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-12 text-center max-w-md w-full">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+          <CheckCircle className="w-10 h-10 text-green-500" />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Form Submitted!</h2>
+        <p className="text-gray-500 text-sm mb-2">Your examination form has been successfully submitted.</p>
+        <p className="text-gray-500 text-sm mb-6">Admin will review and contact you shortly.</p>
+        <div className="bg-blue-50 rounded-xl p-4 mb-6 text-left">
+          <p className="text-xs text-blue-600 font-semibold mb-1">Enrollment Number</p>
+          <p className="text-blue-800 font-black text-lg">{form.enrollmentNumber}</p>
+        </div>
+        {user ? (
+          <button onClick={() => navigate('/dashboard')}
+            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all">
+            Go to Dashboard
+          </button>
+        ) : (
+        <button onClick={() => { setSuccess(false); setForm({ studentName:'',fatherName:'',motherName:'',dob:'',gender:'',category:'General',enrollmentNumber:'',course:'',batch:'',session:'',qualification:'',subjects:'',phone:'',email:'',address:'' }); }}
+          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all">
+          Submit Another Form
+        </button>
+        )}
+      </motion.div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-24 pb-16 px-4">
+      <div className="max-w-3xl mx-auto">
+
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-full text-sm font-semibold mb-4 shadow-md">
+            <FileText className="w-4 h-4" /> Keerti Computer Institute
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-gray-900">Examination Registration Form</h1>
+          <p className="text-gray-500 mt-2 text-sm">Fill all required fields carefully. Fields marked with <span className="text-red-500 font-bold">*</span> are mandatory.</p>
+          {user && (
+            <div className="mt-3 inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-semibold">
+              <CheckCircle className="w-3.5 h-3.5" /> Fields auto-filled from your profile
+            </div>
+          )}
+        </motion.div>
+
+        {Object.keys(errors).length > 0 && (
+          <div className="mb-5 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" /> Please fix the errors below before proceeding.
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Section 1: Personal Info */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <SectionHeader icon={User} title="Personal Information" color="border-blue-200" />
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div>
+                <label className={labelCls}>Student Name <span className="text-red-500">*</span></label>
+                <input name="studentName" value={form.studentName} onChange={handle} placeholder="Enter full name" className={`${inputCls} ${errors.studentName ? 'border-red-400' : ''}`} />
+                {errors.studentName && <p className="text-red-500 text-xs mt-1">{errors.studentName}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Father's Name <span className="text-red-500">*</span></label>
+                <input name="fatherName" value={form.fatherName} onChange={handle} placeholder="Enter father's name" className={`${inputCls} ${errors.fatherName ? 'border-red-400' : ''}`} />
+                {errors.fatherName && <p className="text-red-500 text-xs mt-1">{errors.fatherName}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Mother's Name</label>
+                <input name="motherName" value={form.motherName} onChange={handle} placeholder="Enter mother's name" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Date of Birth <span className="text-red-500">*</span></label>
+                <input type="date" name="dob" value={form.dob} onChange={handle} className={`${inputCls} ${errors.dob ? 'border-red-400' : ''}`} />
+                {errors.dob && <p className="text-red-500 text-xs mt-1">{errors.dob}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Gender <span className="text-red-500">*</span></label>
+                <select name="gender" value={form.gender} onChange={handle} className={`${selectCls} ${errors.gender ? 'border-red-400' : ''}`}>
+                  <option value="">-- Select --</option>
+                  <option>Male</option>
+                  <option>Female</option>
+                  <option>Other</option>
+                </select>
+                {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Category</label>
+                <select name="category" value={form.category} onChange={handle} className={selectCls}>
+                  <option>General</option>
+                  <option>OBC</option>
+                  <option>SC</option>
+                  <option>ST</option>
+                </select>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Section 2: Academic Info */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <SectionHeader icon={BookOpen} title="Academic Information" color="border-indigo-200" />
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div>
+                <label className={labelCls}>Enrollment Number <span className="text-red-500">*</span></label>
+                <input name="enrollmentNumber" value={form.enrollmentNumber} onChange={handle} placeholder="e.g. KCI/2024/DCA/0001" className={`${inputCls} ${errors.enrollmentNumber ? 'border-red-400' : ''}`} />
+                {errors.enrollmentNumber && <p className="text-red-500 text-xs mt-1">{errors.enrollmentNumber}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Course Name <span className="text-red-500">*</span></label>
+                <select name="course" value={form.course} onChange={handle} className={`${selectCls} ${errors.course ? 'border-red-400' : ''}`}>
+                  <option value="">Select Course</option>
+                  {COURSES.map(c => <option key={c}>{c}</option>)}
+                </select>
+                {errors.course && <p className="text-red-500 text-xs mt-1">{errors.course}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Batch <span className="text-red-500">*</span></label>
+                <input name="batch" value={form.batch} onChange={handle} placeholder="e.g. 2026" className={`${inputCls} ${errors.batch ? 'border-red-400' : ''}`} />
+                {errors.batch && <p className="text-red-500 text-xs mt-1">{errors.batch}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Session / Year</label>
+                <input name="session" value={form.session} onChange={handle} placeholder="e.g. 2024-25" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Highest Qualification</label>
+                <input name="qualification" value={form.qualification} onChange={handle} placeholder="e.g. 12th, Graduation" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Subjects / Specialization</label>
+                <input name="subjects" value={form.subjects} onChange={handle} placeholder="e.g. Computer Science, Commerce" className={inputCls} />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Section 3: Contact Info */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <SectionHeader icon={Phone} title="Contact Information" color="border-emerald-200" />
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div>
+                <label className={labelCls}>Phone Number <span className="text-red-500">*</span></label>
+                <input type="tel" name="phone" value={form.phone} onChange={handle} placeholder="10-digit mobile number" maxLength={10} className={`${inputCls} ${errors.phone ? 'border-red-400' : ''}`} />
+                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Email Address <span className="text-red-500">*</span></label>
+                <input name="email" value={form.email} onChange={handle} placeholder="your@email.com" className={`${inputCls} ${errors.email ? 'border-red-400' : ''}`} />
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelCls}>Full Address</label>
+                <textarea name="address" value={form.address} onChange={handle} rows={2} placeholder="House No., Street, City, State, PIN" className={inputCls + ' resize-none'} />
+              </div>
+            </div>
+          </motion.div>
+
+
+
+          {/* Declaration + Next */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-start gap-3 mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <input type="checkbox" required id="declaration" checked={declared} onChange={e => setDeclared(e.target.checked)} className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer" />
+              <label htmlFor="declaration" className="text-sm text-gray-600 cursor-pointer leading-relaxed">
+                I hereby declare that all the information provided above is <strong>true and correct</strong> to the best of my knowledge.
+              </label>
+            </div>
+            <motion.button type="submit" disabled={!declared || loading}
+              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
+              className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-base rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {loading ? <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting...</> : <><FileText className="w-5 h-5" /> Submit Exam Form</>}
+            </motion.button>
+          </motion.div>
+
+        </form>
+      </div>
+    </div>
+  );
+}
