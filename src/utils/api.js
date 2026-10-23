@@ -1,9 +1,11 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || '';
+const rawApiUrl = (import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || '').trim();
+// Strip trailing slashes and redundant /api suffix
+export const API_URL = rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '');
 
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: API_URL ? `${API_URL}/api` : '/api',
   timeout: 30000,
 });
 
